@@ -8,30 +8,9 @@ namespace LiteView;
  */
 class Validator
 {
-    protected static function parseRuleString($rule): array
-    {
-        if (is_string($rule)) {
-            $rule = [$rule];
-        }
-        $__raw = $rule[0];
-        $label = $rule[1] ?? '';
-        $alias = $rule[2] ?? null;
-
-        $functions = [];
-        $func_arr  = explode('|', $__raw);
-        foreach ($func_arr as $item) {
-            $fun_args = explode(':', $item);
-            $function = $fun_args[0];
-            $args     = $fun_args[1] ?? null;
-            if ($args) {
-                $args = explode(',', $args);
-            }
-            $functions[] = [$function, $args];
-        }
-
-        return [$functions, $label, $alias];
-    }
-
+    /**
+     * $rule 可以为数组，3个元素分别为 [表达示，label（用于提示消息），字段别名（用于字段重命名）]
+    */
     public static function validate(array $data, array $rule, array $messages = [], array $default_value = [], array $custom_func = []): Validator
     {
         $validator = new self($messages, $default_value);
@@ -77,6 +56,30 @@ class Validator
         }
 
         return $validator;
+    }
+
+    protected static function parseRuleString($rule): array
+    {
+        if (is_string($rule)) {
+            $rule = [$rule];
+        }
+        $__raw = $rule[0];
+        $label = $rule[1] ?? '';
+        $alias = $rule[2] ?? null;
+
+        $functions = [];
+        $func_arr  = explode('|', $__raw);
+        foreach ($func_arr as $item) {
+            $fun_args = explode(':', $item);
+            $function = $fun_args[0];
+            $args     = $fun_args[1] ?? null;
+            if ($args) {
+                $args = explode(',', $args);
+            }
+            $functions[] = [$function, $args];
+        }
+
+        return [$functions, $label, $alias];
     }
 
     public static function enum($value, $args): bool
@@ -128,7 +131,7 @@ class Validator
     protected $messages;
     protected $default_value;
 
-    public function __construct(array $messages, array $default_value)
+    protected function __construct(array $messages, array $default_value)
     {
         $this->parseMessages($messages);
         $this->default_value = $default_value;
