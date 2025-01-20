@@ -161,4 +161,20 @@ class Validator
         $err_msg       = $this->messages[$field][$function] ?? "$function verification failed";
         $this->error[] = "$label $err_msg";
     }
+
+    public function getData($need_null = false): array
+    {
+        if ($need_null) {
+            return $this->data;
+        }
+
+        $data = [];
+        foreach ($this->data as $field => $value) {
+            if (!is_null($value)) {
+                $data[$field] = $value;
+            }
+        }
+
+        return $data;
+    }
 }
