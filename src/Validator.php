@@ -2,15 +2,47 @@
 
 namespace LiteView;
 
-/**
- * 参考
- * https://github.com/zendframework/zendframework/tree/release-2.4/library/Zend/Validator
+/*
+参考:
+https://github.com/zendframework/zendframework/tree/release-2.4/library/Zend/Validator
+
+示例:
+| 分割验证方法
+: 指定参数
+, 分割参数
+$rule = [
+    'name' => 'require|maxLen:25',
+    'sex'  => 'enum:1,2',
+    'age'  => 'nullable|number|min:0,max:200',
+];
  */
+
 class Validator
 {
-    /**
-     * $rule 可以为数组，3个元素分别为 [表达示，label（用于提示消息），字段别名（用于字段重命名）]
-    */
+    protected static function parseRuleString($rule): array
+    {
+        if (is_string($rule)) {
+            $rule = [$rule];
+        }
+        $__raw = $rule[0];
+        $label = $rule[1] ?? '';
+        $alias = $rule[2] ?? null;
+
+        $functions = [];
+        $func_arr  = explode('|', $__raw);
+        foreach ($func_arr as $item) {
+            $fun_args = explode(':', $item);
+            $function = $fun_args[0];
+            $args     = $fun_args[1] ?? null;
+            if ($args) {
+                $args = explode(',', $args);
+            }
+            $functions[] = [$function, $args];
+        }
+
+        return [$functions, $label, $alias];
+    }
+
     public static function validate(array $data, array $rule, array $messages = [], array $default_value = [], array $custom_func = []): Validator
     {
         $validator = new self($messages, $default_value);
@@ -37,7 +69,7 @@ class Validator
                 }
 
                 if (is_null($value) && !$nullable) {
-                    $validator->putError($field, 'null', $label);
+                    $validator->putError($field, 'can not be null', $label);
                 } elseif (!$pass) {
                     $validator->putError($field, $function, $label);
                 }
@@ -56,30 +88,6 @@ class Validator
         }
 
         return $validator;
-    }
-
-    protected static function parseRuleString($rule): array
-    {
-        if (is_string($rule)) {
-            $rule = [$rule];
-        }
-        $__raw = $rule[0];
-        $label = $rule[1] ?? '';
-        $alias = $rule[2] ?? null;
-
-        $functions = [];
-        $func_arr  = explode('|', $__raw);
-        foreach ($func_arr as $item) {
-            $fun_args = explode(':', $item);
-            $function = $fun_args[0];
-            $args     = $fun_args[1] ?? null;
-            if ($args) {
-                $args = explode(',', $args);
-            }
-            $functions[] = [$function, $args];
-        }
-
-        return [$functions, $label, $alias];
     }
 
     public static function enum($value, $args): bool
@@ -105,25 +113,25 @@ class Validator
     public static function max($value, $args): bool
     {
         $limit = $args[0];
-        if (is_string($value)) {
-            return mb_strlen($value, 'UTF-8') <= $limit;
-        }
-        if (is_numeric($value)) {
-            return $value <= $limit;
-        }
-        return false;
+        return $value <= $limit;
     }
 
     public static function min($value, $args): bool
     {
         $limit = $args[0];
-        if (is_string($value)) {
-            return mb_strlen($value, 'UTF-8') >= $limit;
-        }
-        if (is_numeric($value)) {
-            return $value >= $limit;
-        }
-        return false;
+        return $value >= $limit;
+    }
+
+    public static function maxLen($value, $args): bool
+    {
+        $limit = $args[0];
+        return mb_strlen($value, 'UTF-8') <= $limit;
+    }
+
+    public static function minLen($value, $args): bool
+    {
+        $limit = $args[0];
+        return mb_strlen($value, 'UTF-8') >= $limit;
     }
 
     public $data;
@@ -131,7 +139,7 @@ class Validator
     protected $messages;
     protected $default_value;
 
-    protected function __construct(array $messages, array $default_value)
+    public function __construct(array $messages, array $default_value)
     {
         $this->parseMessages($messages);
         $this->default_value = $default_value;
@@ -167,7 +175,6 @@ class Validator
         if ($need_null) {
             return $this->data;
         }
-
         $data = [];
         foreach ($this->data as $field => $value) {
             if (!is_null($value)) {
@@ -176,5 +183,32 @@ class Validator
         }
 
         return $data;
+    }
+
+    public function getDataBy($key = null, $default = null)
+    {
+        if (is_null($key)) {
+            return $this->data;
+        }
+        return $this->data[$key] ?? $default;
+    }
+
+    public function getDataOnly(array $fields, $need_null = false): array
+    {
+        $data = [];
+        foreach ($fields as $field) {
+            $value = $this->data[$field];
+            if (is_null($value) && !$need_null) {
+                continue;
+            }
+            $data[$field] = $value;
+        }
+        return $data;
+    }
+
+    public function getDataExcept(array $fields, $need_null = false): array
+    {
+        $fields = array_diff(array_keys($this->data), $fields);
+        return $this->getDataOnly($fields, $need_null);
     }
 }
